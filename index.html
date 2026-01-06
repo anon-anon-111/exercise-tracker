@@ -368,7 +368,7 @@
 
             exportToCSV() {
                 const h = 'date,exercise_type,duration_minutes,notes';
-                const r = this.exercises.map(ex => `${ex.date},${ex.exercise_type},${ex.duration_minutes},"${ex.notes.replace(/"/g, '""')}"`);
+                const r = this.exercises.map(ex => `${ex.date},${ex.exercise_type},${ex.duration_minutes},"${(ex.notes || '').replace(/"/g, '""')}"`);
                 const csvContent = [h, ...r].join('\n');
                 const blob = new Blob([csvContent], { type: 'application/octet-stream' });
                 const url = URL.createObjectURL(blob);
