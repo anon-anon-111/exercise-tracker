@@ -1,9 +1,9 @@
 <html lang="en"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Exercise Tracker (Multi-Heatmap)</title>
+    <title>Exercise Tracker</title>
     <style>
-        /* ORIGINAL STYLES RESTORED */
+        /* UI STYLES */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Courier New', Monaco, monospace; background: white; color: black; padding: 20px; line-height: 1.6; font-size: 12px; }
         .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; }
@@ -39,13 +39,13 @@
         .level-3 { background-color: #6b7280; }
         .level-4 { background-color: #000000; }
 
-        /* STATELESS INTERFACE */
+        /* STATELESS OVERLAY */
         .drop-zone { border: 2px dashed black; padding: 40px; text-align: center; margin-bottom: 10px; background: #f9f9f9; cursor: pointer; font-weight: bold; }
         .hidden { display: none !important; }
 
-        /* PRINT FIXES */
+        /* PRINT HIDING */
         @media print {
-            .drop-zone, .exercise-type-manager, .buttons, .section:has(.input-row) { display: none !important; }
+            .drop-zone, .exercise-type-manager, .buttons, .section:has(.input-row), h1 { display: none !important; }
             .container { max-width: 100%; padding: 0; }
             .heatmap-cell { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
         }
@@ -89,7 +89,8 @@
                 <h2 class="section-title">Summary & History Heatmaps</h2>
                 <div class="summary">
                     <div id="summaryContent"></div>
-                    <div id="multiHeatmapContainer"></div> <div class="buttons">
+                    <div id="multiHeatmapContainer"></div>
+                    <div class="buttons">
                         <button onclick="window.print()">Print PDF</button>
                         <button onclick="tracker.exportToCSV()">Export CSV</button>
                         <button onclick="location.reload()">Clear Session</button>
@@ -103,7 +104,7 @@
             </div>
         </div>
 
-        <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="importFromCSV(event)">
+        <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="handleFileImport(event)">
     </div>
 
     <script>
@@ -130,7 +131,7 @@
                 const duration = parseInt(document.getElementById('exerciseDuration').value);
                 const notes = document.getElementById('exerciseNotes').value.trim();
 
-                if (!date || !type || !duration) return alert('Please provide date, type, and duration.');
+                if (!date || !type || !duration) return alert('Fill required fields');
 
                 this.exercises.unshift({ id: Date.now(), date, exercise_type: type, duration_minutes: duration, notes });
                 this.updateDisplay();
@@ -148,13 +149,13 @@
             }
 
             deleteExerciseType(type) {
-                if (this.exercises.some(ex => ex.exercise_type === type)) return alert('Cannot delete type currently in use.');
+                if (this.exercises.some(ex => ex.exercise_type === type)) return alert('In use');
                 this.exerciseTypes = this.exerciseTypes.filter(t => t !== type);
                 this.updateDisplay();
             }
 
             deleteExercise(id) {
-                if (confirm('Delete this entry?')) {
+                if (confirm('Delete?')) {
                     this.exercises = this.exercises.filter(ex => ex.id !== id);
                     this.updateDisplay();
                 }
@@ -176,10 +177,9 @@
             updateTypeUI() {
                 const sel = document.getElementById('exerciseTypeSelect');
                 const cur = sel.value;
-                sel.innerHTML = '<option value="">Select type...</option>' + 
+                sel.innerHTML = '<option value="">Select...</option>' + 
                     this.exerciseTypes.sort().map(t => `<option value="${t}">${t}</option>`).join('');
                 if (this.exerciseTypes.includes(cur)) sel.value = cur;
-                
                 document.getElementById('exerciseTypeList').innerHTML = this.exerciseTypes.sort().map(t => `
                     <div class="exercise-type-item"><span>${t}</span><button onclick="tracker.deleteExerciseType('${t}')">Del</button></div>
                 `).join('');
@@ -191,11 +191,11 @@
                     <div class="exercise-entry">
                         <div class="exercise-main">
                             <div class="exercise-text">${this.formatExerciseLine(ex.date, ex.exercise_type, ex.duration_minutes)}</div>
-                            <button class="delete-btn" onclick="tracker.deleteExercise(${ex.id})">Delete</button>
+                            <button class="delete-btn" onclick="tracker.deleteExercise(${ex.id})">Del</button>
                         </div>
                         ${ex.notes ? `<div class="exercise-notes">${ex.notes}</div>` : ''}
                     </div>
-                `).join('') || '<div class="no-exercises">Empty session. Add or import data.</div>';
+                `).join('') || '<div class="no-exercises">Empty session.</div>';
             }
 
             updateSummaryUI() {
@@ -214,31 +214,22 @@
                     <div class="summary-subtitle">Overall Session Stats</div>
                     ${lines || 'No session data.'}
                 `;
-
                 this.renderHeatmaps();
             }
 
             renderHeatmaps() {
                 const container = document.getElementById('multiHeatmapContainer');
                 container.innerHTML = '';
-                
-                // Get unique years from data
                 const years = [...new Set(this.exercises.map(ex => new Date(ex.date).getFullYear()))].sort((a, b) => b - a);
-                
-                if (years.length === 0) {
-                    // Default to current year for empty session
-                    years.push(new Date().getFullYear());
-                }
+                if (years.length === 0) years.push(new Date().getFullYear());
 
                 years.forEach(year => {
                     const label = document.createElement('div');
                     label.className = 'heatmap-year-label';
                     label.innerText = `Year: ${year}`;
-                    
                     const grid = document.createElement('div');
                     grid.className = 'heatmap-grid';
                     grid.innerHTML = this.generateYearGrid(year);
-                    
                     container.appendChild(label);
                     container.appendChild(grid);
                 });
@@ -249,7 +240,6 @@
                     acc[ex.date] = (acc[ex.date] || 0) + ex.duration_minutes;
                     return acc;
                 }, {});
-                
                 let html = '';
                 for(let m=0; m<12; m++) {
                     for(let d=1; d<=31; d++) {
@@ -264,11 +254,10 @@
                 return html;
             }
 
-            importFromCSV(csv) {
+            importCSV(csv) {
                 const lines = csv.trim().split('\n');
                 if (lines.length < 2) return;
                 const headers = lines[0].toLowerCase().split(',').map(h => h.trim());
-                
                 this.exercises = lines.slice(1).map(l => {
                     const v = this.parseCSVLine(l);
                     const type = v[headers.indexOf('exercise_type')];
@@ -281,7 +270,6 @@
                         notes: (v[headers.indexOf('notes')] || '').replace(/^"|"$/g, '')
                     };
                 }).filter(ex => ex.date);
-                
                 this.startFresh();
             }
 
@@ -297,4 +285,24 @@
 
             exportToCSV() {
                 const h = 'date,exercise_type,duration_minutes,notes';
-                const r = this.exercises.map(ex => `${ex.date},${
+                const r = this.exercises.map(ex => `${ex.date},${ex.exercise_type},${ex.duration_minutes},"${ex.notes.replace(/"/g, '""')}"`);
+                const blob = new Blob([[h, ...r].join('\n')], { type: 'text/csv' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `workout_history_export.csv`;
+                a.click();
+            }
+        }
+
+        // GLOBAL DEFINITIONS
+        const tracker = new ExerciseTracker();
+
+        function handleFileImport(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (evt) => tracker.importCSV(evt.target.result);
+            reader.readAsText(file);
+        }
+    </script>
+</body></html>
