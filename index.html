@@ -1,0 +1,233 @@
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exercise Tracker (Stateless)</title>
+    <style>
+        /* CSS adapted from original for mobile-friendly stateless use */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Courier New', Monaco, monospace; background: white; color: black; padding: 20px; line-height: 1.6; font-size: 12px; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; }
+        h1 { text-align: center; margin-bottom: 20px; font-weight: normal; }
+        .section { margin-bottom: 30px; }
+        .section-title { margin-bottom: 15px; text-decoration: underline; }
+        .input-row { margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+        input[type="text"], input[type="number"], input[type="date"], textarea, select { font-family: 'Courier New', Monaco, monospace; border: 1px solid black; padding: 4px; margin-right: 5px; font-size: 12px; }
+        textarea { width: 100%; min-height: 40px; resize: vertical; margin-top: 5px; }
+        button { font-family: 'Courier New', Monaco, monospace; border: 1px solid black; background: white; padding: 4px 8px; cursor: pointer; font-size: 12px; }
+        button:hover { background: #f0f0f0; }
+        .exercise-list { margin-top: 15px; border: 1px solid black; padding: 10px; min-height: 200px; }
+        .exercise-entry { margin-bottom: 15px; border-bottom: 1px dotted black; padding-bottom: 10px; }
+        .exercise-entry:last-child { border-bottom: none; }
+        .exercise-main { display: flex; align-items: center; margin-bottom: 5px; }
+        .exercise-text { flex: 1; font-family: 'Courier New', Monaco, monospace; }
+        .exercise-notes { margin-left: 20px; font-style: italic; color: #555; margin-bottom: 5px; }
+        .delete-btn { padding: 2px 6px; font-size: 10px; margin-left: 10px; }
+        .summary { border: 2px solid black; padding: 15px; margin-top: 30px; }
+        .summary-subtitle { font-weight: bold; margin-bottom: 10px; text-decoration: underline; }
+        .summary-line { margin-bottom: 3px; font-size: 11px; }
+        .buttons { text-align: center; margin-top: 15px; }
+        .buttons button { margin: 0 5px; }
+        .no-exercises { font-style: italic; text-align: center; margin-top: 50px; }
+        
+        /* New Stateless Components */
+        .drop-zone { border: 2px dashed black; padding: 40px; text-align: center; margin-bottom: 30px; background: #f9f9f9; cursor: pointer; font-weight: bold; }
+        .hidden { display: none !important; }
+        .heatmap-grid { display: grid; grid-template-columns: repeat(31, 1fr); gap: 2px; border: 1px solid black; padding: 5px; }
+        .heatmap-cell { width: 10px; height: 10px; border-radius: 2px; border: 1px solid #e5e7eb; }
+        .level-0 { background-color: #ffffff; }
+        .level-1 { background-color: #d1d5db; }
+        .level-2 { background-color: #9ca3af; }
+        .level-3 { background-color: #6b7280; }
+        .level-4 { background-color: #000000; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Exercise Tracker</h1>
+
+        <div id="uploadPrompt" class="drop-zone" onclick="document.getElementById('csvFileInput').click()">
+            TAP HERE TO IMPORT YOUR EXERCISES.CSV<br>
+            <span style="font-weight: normal; font-size: 10px;">(Privacy: Processing happens in your browser; no data is sent to a server)</span>
+        </div>
+
+        <div id="mainApp" class="hidden">
+            <div class="section">
+                <h2 class="section-title">Add New Entry</h2>
+                <div class="input-row">
+                    <input type="date" id="exerciseDate">
+                    <select id="exerciseTypeSelect"></select>
+                    <input type="number" id="exerciseDuration" placeholder="Minutes" min="1">
+                    <button onclick="tracker.addExercise()">Add</button>
+                </div>
+                <textarea id="exerciseNotes" placeholder="Notes (optional)"></textarea>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Reports & Sync</h2>
+                <div class="summary">
+                    <div id="summaryContent"></div>
+                    <div class="buttons">
+                        <button onclick="window.print()">Print PDF</button>
+                        <button onclick="tracker.exportToCSV()">Export Updated CSV</button>
+                        <button onclick="location.reload()">Clear Session</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">Exercise Log</h2>
+                <div class="exercise-list" id="exerciseList"></div>
+            </div>
+        </div>
+
+        <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="importFromCSV(event)">
+    </div>
+
+    <script>
+        class ExerciseTracker {
+            constructor() {
+                this.exercises = [];
+                this.exerciseTypes = ['squash', 'cycling', 'gym', 'weights', 'pilates', 'swimming', 'running', 'hydrospeeding'];
+                this.setDefaultDate();
+                this.updateTypeSelect();
+            }
+
+            setDefaultDate() {
+                document.getElementById('exerciseDate').value = new Date().toISOString().split('T')[0];
+            }
+
+            updateTypeSelect() {
+                const select = document.getElementById('exerciseTypeSelect');
+                select.innerHTML = '<option value="">Select type...</option>' + 
+                    this.exerciseTypes.map(t => `<option value="${t}">${t}</option>`).join('');
+            }
+
+            addExercise() {
+                const date = document.getElementById('exerciseDate').value;
+                const type = document.getElementById('exerciseTypeSelect').value;
+                const duration = parseInt(document.getElementById('exerciseDuration').value);
+                const notes = document.getElementById('exerciseNotes').value.trim();
+
+                if (!date || !type || !duration) return alert('Please fill in Date, Type, and Duration.');
+
+                this.exercises.unshift({
+                    id: Date.now(),
+                    date,
+                    exercise_type: type,
+                    duration_minutes: duration,
+                    notes
+                });
+
+                this.updateDisplay();
+                document.getElementById('exerciseDuration').value = '';
+                document.getElementById('exerciseNotes').value = '';
+            }
+
+            // Core Stateless Logic: Import CSV to build the session
+            importFromCSV(csvText) {
+                const lines = csvText.trim().split('\n');
+                if (lines.length < 2) return alert('Invalid CSV file.');
+
+                const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+                const newExercises = [];
+
+                for (let i = 1; i < lines.length; i++) {
+                    const values = this.parseCSVLine(lines[i]);
+                    if (values.length >= 3) {
+                        newExercises.push({
+                            id: Date.now() + i,
+                            date: values[headers.indexOf('date')],
+                            exercise_type: values[headers.indexOf('exercise_type')],
+                            duration_minutes: parseInt(values[headers.indexOf('duration_minutes')]),
+                            notes: values[headers.indexOf('notes')] ? values[headers.indexOf('notes')].replace(/^"|"$/g, '') : ''
+                        });
+                    }
+                }
+                this.exercises = newExercises;
+                document.getElementById('uploadPrompt').classList.add('hidden');
+                document.getElementById('mainApp').classList.remove('hidden');
+                this.updateDisplay();
+            }
+
+            parseCSVLine(line) {
+                const result = [];
+                let current = '', inQuotes = false;
+                for (let char of line) {
+                    if (char === '"') inQuotes = !inQuotes;
+                    else if (char === ',' && !inQuotes) { result.push(current); current = ''; }
+                    else current += char;
+                }
+                result.push(current);
+                return result;
+            }
+
+            exportToCSV() {
+                const headers = ['date', 'exercise_type', 'duration_minutes', 'notes'];
+                const rows = this.exercises.map(ex => [
+                    ex.date, ex.exercise_type, ex.duration_minutes, `"${ex.notes.replace(/"/g, '""')}"`
+                ].join(','));
+                
+                const blob = new Blob([[headers.join(','), ...rows].join('\n')], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `exercises_updated_${new Date().toISOString().split('T')[0]}.csv`;
+                a.click();
+            }
+
+            deleteExercise(id) {
+                if (confirm('Delete this entry?')) {
+                    this.exercises = this.exercises.filter(ex => ex.id !== id);
+                    this.updateDisplay();
+                }
+            }
+
+            updateDisplay() {
+                this.updateLog();
+                this.updateSummary();
+            }
+
+            updateLog() {
+                const container = document.getElementById('exerciseList');
+                container.innerHTML = this.exercises.map(ex => `
+                    <div class="exercise-entry">
+                        <div class="exercise-main">
+                            <div class="exercise-text">${ex.date} | ${ex.exercise_type.toUpperCase()} | ${ex.duration_minutes} min</div>
+                            <button class="delete-btn" onclick="tracker.deleteExercise(${ex.id})">Delete</button>
+                        </div>
+                        <div class="exercise-notes">${ex.notes}</div>
+                    </div>
+                `).join('');
+            }
+
+            updateSummary() {
+                const stats = this.exercises.reduce((acc, ex) => {
+                    acc[ex.exercise_type] = (acc[ex.exercise_type] || 0) + ex.duration_minutes;
+                    return acc;
+                }, {});
+
+                const lines = Object.entries(stats)
+                    .sort((a,b) => b[1] - a[1])
+                    .map(([type, min]) => `<div class="summary-line">${type} ---------------- ${min} min</div>`);
+
+                document.getElementById('summaryContent').innerHTML = `
+                    <div class="summary-section">
+                        <div class="summary-subtitle">Total Session Statistics</div>
+                        ${lines.join('') || 'No data recorded.'}
+                    </div>
+                `;
+            }
+        }
+
+        const tracker = new ExerciseTracker();
+
+        // Helper for the file input trigger
+        function importFromCSV(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => tracker.importFromCSV(e.target.result);
+            reader.readAsText(file);
+        }
+    </script>
+</body></html>
