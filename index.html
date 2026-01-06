@@ -1,9 +1,9 @@
 <html lang="en"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Exercise Tracker (Full Stateless)</title>
+    <title>Exercise Tracker (Fixed)</title>
     <style>
-        /* ALL ORIGINAL STYLES RESTORED */
+        /* ORIGINAL STYLES */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Courier New', Monaco, monospace; background: white; color: black; padding: 20px; line-height: 1.6; font-size: 12px; }
         .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; }
@@ -17,7 +17,6 @@
         button:hover { background: #f0f0f0; }
         .exercise-list { margin-top: 15px; border: 1px solid black; padding: 10px; min-height: 200px; }
         .exercise-entry { margin-bottom: 15px; border-bottom: 1px dotted black; padding-bottom: 10px; }
-        .exercise-entry:last-child { border-bottom: none; }
         .exercise-main { display: flex; align-items: center; margin-bottom: 5px; }
         .exercise-text { flex: 1; font-family: 'Courier New', Monaco, monospace; }
         .exercise-notes { margin-left: 20px; font-style: italic; color: #555; margin-bottom: 5px; }
@@ -27,9 +26,10 @@
         .summary-line { margin-bottom: 3px; font-size: 11px; }
         .buttons { text-align: center; margin-top: 15px; }
         .buttons button { margin: 0 5px; }
-        .no-exercises { font-style: italic; text-align: center; margin-top: 50px; }
         .exercise-type-manager { margin-bottom: 15px; border: 1px solid black; padding: 10px; }
         .exercise-type-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; padding: 2px 5px; }
+
+        /* HEATMAP STYLES */
         .heatmap-grid { display: grid; grid-template-columns: repeat(31, 1fr); gap: 2px; border: 1px solid black; padding: 5px; }
         .heatmap-cell { width: 10px; height: 10px; border-radius: 2px; border: 1px solid #e5e7eb; }
         .level-0 { background-color: #ffffff; }
@@ -37,17 +37,28 @@
         .level-2 { background-color: #9ca3af; }
         .level-3 { background-color: #6b7280; }
         .level-4 { background-color: #000000; }
-        .drop-zone { border: 2px dashed black; padding: 40px; text-align: center; margin-bottom: 30px; background: #f9f9f9; cursor: pointer; font-weight: bold; }
+
+        /* INTERFACE STYLES */
+        .drop-zone { border: 2px dashed black; padding: 40px; text-align: center; margin-bottom: 10px; background: #f9f9f9; cursor: pointer; font-weight: bold; }
         .hidden { display: none !important; }
+
+        /* PRINT STYLES: Hides inputs and types */
+        @media print {
+            .drop-zone, .exercise-type-manager, .buttons, h1, .section:has(.input-row) { display: none !important; }
+            .container { max-width: 100%; padding: 0; }
+            .heatmap-cell { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Exercise Tracker</h1>
 
-        <div id="uploadPrompt" class="drop-zone" onclick="document.getElementById('csvFileInput').click()">
-            TAP HERE TO IMPORT EXERCISES.CSV TO BEGIN<br>
-            <span style="font-weight: normal; font-size: 10px;">(Privacy: Everything stays in your browser)</span>
+        <div id="uploadPrompt" class="drop-zone">
+            <div onclick="document.getElementById('csvFileInput').click()">TAP TO IMPORT EXERCISES.CSV</div>
+            <div style="margin-top: 15px; font-weight: normal; border-top: 1px solid #ccc; padding-top: 10px;">
+                <button onclick="tracker.startFresh()">Or Start Fresh Session</button>
+            </div>
         </div>
 
         <div id="mainApp" class="hidden">
@@ -78,8 +89,8 @@
                 <div class="summary">
                     <div id="summaryContent"></div>
                     <div class="buttons">
-                        <button onclick="window.print()">Print</button>
-                        <button onclick="tracker.exportToCSV()">Export Updated CSV</button>
+                        <button onclick="window.print()">Print PDF</button>
+                        <button onclick="tracker.exportToCSV()">Export CSV</button>
                         <button onclick="location.reload()">Clear Session</button>
                     </div>
                 </div>
@@ -98,12 +109,18 @@
         class ExerciseTracker {
             constructor() {
                 this.exercises = [];
-                this.exerciseTypes = ['cycling', 'gym', 'squash', 'running', 'pilates', 'swimming'];
+                this.exerciseTypes = ['cycling', 'gym', 'squash', 'running', 'pilates'];
                 this.setDefaultDate();
             }
 
             setDefaultDate() {
                 document.getElementById('exerciseDate').value = new Date().toISOString().split('T')[0];
+            }
+
+            startFresh() {
+                document.getElementById('uploadPrompt').classList.add('hidden');
+                document.getElementById('mainApp').classList.remove('hidden');
+                this.updateDisplay();
             }
 
             addExercise() {
@@ -112,16 +129,9 @@
                 const duration = parseInt(document.getElementById('exerciseDuration').value);
                 const notes = document.getElementById('exerciseNotes').value.trim();
 
-                if (!date || !type || !duration) return alert('Missing info');
+                if (!date || !type || !duration) return alert('Fill required fields');
 
-                this.exercises.unshift({
-                    id: Date.now(),
-                    date,
-                    exercise_type: type,
-                    duration_minutes: duration,
-                    notes
-                });
-
+                this.exercises.unshift({ id: Date.now(), date, exercise_type: type, duration_minutes: duration, notes });
                 this.updateDisplay();
                 document.getElementById('exerciseDuration').value = '';
                 document.getElementById('exerciseNotes').value = '';
@@ -175,7 +185,6 @@
             }
 
             updateLogUI() {
-                // Sort by date (newest first)
                 const sorted = [...this.exercises].sort((a,b) => new Date(b.date) - new Date(a.date));
                 document.getElementById('exerciseList').innerHTML = sorted.map(ex => `
                     <div class="exercise-entry">
@@ -189,7 +198,6 @@
             }
 
             updateSummaryUI() {
-                // RESTORED: Instances and Minutes calculation
                 const stats = this.exercises.reduce((acc, ex) => {
                     if (!acc[ex.exercise_type]) acc[ex.exercise_type] = { count: 0, min: 0 };
                     acc[ex.exercise_type].count++;
@@ -207,7 +215,7 @@
                         ${lines || 'No data recorded.'}
                     </div>
                     <div class="heatmap-section">
-                        <h3>Activity Heatmap</h3>
+                        <div class="summary-subtitle">Activity Heatmap (2025)</div>
                         <div class="heatmap-grid">${this.generateHeatmapCells()}</div>
                     </div>
                 `;
@@ -220,12 +228,13 @@
                 }, {});
                 
                 let html = '';
-                const year = new Date().getFullYear();
+                const year = 2025; // Heatmap targeted for current tracking year
                 for(let m=0; m<12; m++) {
                     for(let d=1; d<=31; d++) {
                         const dt = new Date(year, m, d);
                         if(dt.getMonth() !== m) { html += '<div class="heatmap-cell level-0"></div>'; continue; }
-                        const str = dt.toISOString().split('T')[0];
+                        // Ensure local date string matches YYYY-MM-DD for comparison
+                        const str = `${year}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
                         const mins = daily[str] || 0;
                         const lvl = mins === 0 ? 0 : mins <= 30 ? 1 : mins <= 60 ? 2 : mins <= 120 ? 3 : 4;
                         html += `<div class="heatmap-cell level-${lvl}" title="${str}: ${mins}min"></div>`;
@@ -250,10 +259,7 @@
                         notes: (v[headers.indexOf('notes')] || '').replace(/^"|"$/g, '')
                     };
                 }).filter(ex => ex.date);
-                
-                document.getElementById('uploadPrompt').classList.add('hidden');
-                document.getElementById('mainApp').classList.remove('hidden');
-                this.updateDisplay();
+                this.startFresh();
             }
 
             parseCSVLine(l) {
@@ -272,7 +278,7 @@
                 const blob = new Blob([[h, ...r].join('\n')], { type: 'text/csv' });
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
-                a.download = `exercises_updated_${new Date().toISOString().split('T')[0]}.csv`;
+                a.download = `exercises_export.csv`;
                 a.click();
             }
         }
