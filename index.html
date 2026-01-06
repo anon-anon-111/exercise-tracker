@@ -16,13 +16,8 @@
         
         input, select, textarea, button { 
             font-family: 'Courier New', Monaco, monospace; 
-            border: 1px solid black; 
-            padding: 4px; 
-            font-size: 12px; 
-            color: black; 
-            background: white;
-            border-radius: 0;
-            appearance: none;
+            border: 1px solid black; padding: 4px; font-size: 12px; 
+            color: black; background: white; border-radius: 0; appearance: none;
         }
         
         textarea { width: 100%; min-height: 40px; resize: vertical; margin-top: 5px; }
@@ -31,33 +26,21 @@
 
         /* LOG LIST STYLES */
         .exercise-list { margin-top: 15px; border: 1px solid black; padding: 10px; min-height: 200px; }
-        .exercise-entry { 
-            margin-bottom: 15px; 
-            border-bottom: 1px dotted black; 
-            padding-bottom: 12px; 
-            display: flex; 
-            flex-direction: column; 
-        }
-        .exercise-main { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
-        .exercise-text { flex: 1; font-family: 'Courier New', Monaco, monospace; white-space: pre-wrap; color: black; }
+        .exercise-entry { margin-bottom: 15px; border-bottom: 1px dotted black; padding-bottom: 12px; display: flex; flex-direction: column; }
+        .exercise-text { font-family: 'Courier New', Monaco, monospace; white-space: pre-wrap; color: black; }
         .exercise-notes { margin-left: 20px; font-style: italic; color: #555; margin-bottom: 5px; }
         
-        /* DELETE BUTTONS */
         .delete-btn { 
-            padding: 2px 8px; 
-            font-size: 9px; 
-            margin-top: 8px; 
-            align-self: flex-start; 
-            width: auto;
-            color: black;
-            border: 1px solid black;
-            display: inline-block;
+            padding: 2px 8px; font-size: 9px; margin-top: 8px; 
+            align-self: flex-start; width: auto; color: black; border: 1px solid black;
         }
 
         /* SUMMARY & HEATMAP */
         .summary { border: 2px solid black; padding: 15px; margin-top: 30px; }
-        .summary-subtitle { font-weight: bold; margin-bottom: 10px; text-decoration: underline; }
-        .summary-line { margin-bottom: 3px; font-size: 11px; }
+        .summary-group { margin-bottom: 25px; }
+        .summary-subtitle { font-weight: bold; margin-bottom: 10px; text-decoration: underline; font-size: 13px; text-transform: capitalize; }
+        .summary-total-line { margin-bottom: 8px; font-weight: normal; }
+        .summary-line { margin-bottom: 3px; font-size: 11px; white-space: pre; }
         .buttons { text-align: center; margin-top: 15px; }
         .buttons button { margin: 5px; }
 
@@ -73,7 +56,6 @@
         .level-3 { background-color: #6b7280; }
         .level-4 { background-color: #000000; }
 
-        /* TYPE MANAGER */
         .exercise-type-manager { margin-bottom: 15px; border: 1px solid black; padding: 10px; }
         .exercise-type-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; padding: 2px 5px; border-bottom: 1px solid #eee; }
         .type-del-btn { padding: 1px 4px; font-size: 9px; margin-left: 15px; }
@@ -88,7 +70,6 @@
             input, select, .main-action-btn { width: 100%; height: 38px; margin-right: 0; }
             .exercise-text { font-size: 11px; }
             .delete-btn { margin-top: 10px; padding: 4px 12px; font-size: 10px; }
-            .type-del-btn { padding: 3px 6px; font-size: 10px; }
         }
 
         /* PRINT SETTINGS */
@@ -237,9 +218,7 @@
                 const sorted = [...this.exercises].sort((a,b) => new Date(b.date) - new Date(a.date));
                 document.getElementById('exerciseList').innerHTML = sorted.map(ex => `
                     <div class="exercise-entry">
-                        <div class="exercise-main">
-                            <div class="exercise-text">${this.formatExerciseLine(ex.date, ex.exercise_type, ex.duration_minutes)}</div>
-                        </div>
+                        <div class="exercise-text">${this.formatExerciseLine(ex.date, ex.exercise_type, ex.duration_minutes)}</div>
                         ${ex.notes ? `<div class="exercise-notes">${ex.notes}</div>` : ''}
                         <button class="delete-btn" onclick="tracker.deleteExercise(${ex.id})">DELETE</button>
                     </div>
@@ -247,17 +226,54 @@
             }
 
             updateSummaryUI() {
-                const stats = this.exercises.reduce((acc, ex) => {
+                const now = new Date();
+                const oneMonthAgo = new Date().setDate(now.getDate() - 30);
+                const threeMonthsAgo = new Date().setDate(now.getDate() - 90);
+
+                const stats = {
+                    lastMonth: this.calculateGroupStats(this.exercises.filter(ex => new Date(ex.date) >= oneMonthAgo)),
+                    last3Months: this.calculateGroupStats(this.exercises.filter(ex => new Date(ex.date) >= threeMonthsAgo)),
+                    allTime: this.calculateGroupStats(this.exercises)
+                };
+
+                document.getElementById('summaryContent').innerHTML = `
+                    ${this.renderSummarySection("Last Month", stats.lastMonth)}
+                    ${this.renderSummarySection("Last 3 Months", stats.last3Months)}
+                    ${this.renderSummarySection("All Time Summary", stats.allTime)}
+                `;
+                this.renderHeatmaps();
+            }
+
+            calculateGroupStats(exercises) {
+                const group = exercises.reduce((acc, ex) => {
                     if (!acc[ex.exercise_type]) acc[ex.exercise_type] = { count: 0, min: 0 };
                     acc[ex.exercise_type].count++;
                     acc[ex.exercise_type].min += ex.duration_minutes;
                     return acc;
                 }, {});
-                const lines = Object.entries(stats).sort((a,b) => b[1].min - a[1].min).map(([t, d]) => 
-                    `<div class="summary-line">${t} ------------------- ${d.count} sessions, ${d.min} min</div>`
-                ).join('');
-                document.getElementById('summaryContent').innerHTML = `<div class="summary-subtitle">Overall Session Stats</div>${lines || 'No session data.'}`;
-                this.renderHeatmaps();
+                
+                const totalMins = exercises.reduce((sum, ex) => sum + ex.duration_minutes, 0);
+                const typeCount = Object.keys(group).length;
+                
+                return { breakdown: group, totalMins, typeCount };
+            }
+
+            renderSummarySection(title, data) {
+                const sortedTypes = Object.entries(data.breakdown).sort((a,b) => b[1].min - a[1].min);
+                const lines = sortedTypes.map(([type, d]) => {
+                    const leftSide = `${type} `;
+                    const rightSide = ` ${d.count} sessions, ${d.min} min`;
+                    const dashes = '-'.repeat(Math.max(2, 50 - (leftSide.length + rightSide.length)));
+                    return `<div class="summary-line">${leftSide}${dashes}${rightSide}</div>`;
+                }).join('');
+
+                return `
+                    <div class="summary-group">
+                        <div class="summary-subtitle">${title}</div>
+                        <div class="summary-total-line">Total exercises: ${data.typeCount} types, ${data.totalMins} minutes</div>
+                        ${lines || '<div class="summary-line">No data for this period.</div>'}
+                    </div>
+                `;
             }
 
             renderHeatmaps() {
