@@ -6,57 +6,58 @@
     <title>Exercise Tracker</title>
     <style>
         /* CORE STYLES */
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: 'Courier New', Monaco, monospace; background: white; color: black; padding: 20px; line-height: 1.6; font-size: 12px; }
         .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; }
-        h1 { text-align: center; margin-bottom: 20px; font-weight: normal; }
+        h1 { text-align: center; margin-bottom: 20px; font-weight: normal; color: black; }
         .section { margin-bottom: 30px; }
         .section-title { margin-bottom: 15px; text-decoration: underline; }
         .input-row { margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
         
-        input[type="text"], input[type="number"], input[type="date"], textarea, select { 
+        input, select, textarea, button { 
             font-family: 'Courier New', Monaco, monospace; 
             border: 1px solid black; 
             padding: 4px; 
             font-size: 12px; 
+            color: black; 
+            background: white;
+            border-radius: 0;
+            appearance: none; /* Removes default mobile blue styling */
         }
+        
         textarea { width: 100%; min-height: 40px; resize: vertical; margin-top: 5px; }
-        button { font-family: 'Courier New', Monaco, monospace; border: 1px solid black; background: white; padding: 4px 8px; cursor: pointer; font-size: 12px; }
+        button { cursor: pointer; transition: background 0.2s; }
         button:hover { background: #f0f0f0; }
 
+        /* LOG LIST STYLES */
         .exercise-list { margin-top: 15px; border: 1px solid black; padding: 10px; min-height: 200px; }
-        .exercise-entry { margin-bottom: 15px; border-bottom: 1px dotted black; padding-bottom: 10px; }
-        .exercise-main { display: flex; align-items: center; margin-bottom: 5px; }
-        .exercise-text { flex: 1; font-family: 'Courier New', Monaco, monospace; white-space: pre-wrap; }
+        .exercise-entry { margin-bottom: 15px; border-bottom: 1px dotted black; padding-bottom: 10px; display: flex; flex-direction: column; }
+        .exercise-main { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
+        .exercise-text { flex: 1; font-family: 'Courier New', Monaco, monospace; white-space: pre-wrap; color: black; }
         .exercise-notes { margin-left: 20px; font-style: italic; color: #555; margin-bottom: 5px; }
-        .delete-btn { padding: 2px 6px; font-size: 10px; margin-left: 10px; }
+        
+        /* DELETE BUTTONS */
+        .delete-btn { 
+            padding: 2px 6px; 
+            font-size: 10px; 
+            margin-left: 10px; 
+            height: fit-content;
+            color: black;
+            border: 1px solid black;
+        }
 
+        /* SUMMARY & HEATMAP */
         .summary { border: 2px solid black; padding: 15px; margin-top: 30px; }
         .summary-subtitle { font-weight: bold; margin-bottom: 10px; text-decoration: underline; }
         .summary-line { margin-bottom: 3px; font-size: 11px; }
         .buttons { text-align: center; margin-top: 15px; }
         .buttons button { margin: 5px; }
 
-        /* RESPONSIVE HEATMAP STYLES */
+        /* HEATMAP */
         .heatmap-container { margin-top: 20px; width: 100%; }
         .heatmap-year-label { font-weight: bold; margin-top: 15px; margin-bottom: 5px; text-decoration: underline; }
-        
-        /* The Scroll Wrapper */
-        .heatmap-wrapper { 
-            overflow-x: auto; 
-            -webkit-overflow-scrolling: touch; 
-            border: 1px solid #eee; 
-            padding: 5px;
-            margin-bottom: 15px;
-        }
-
-        .heatmap-grid { 
-            display: grid; 
-            grid-template-columns: repeat(31, 1fr); 
-            gap: 2px; 
-            min-width: 450px; /* Forces enough width for 31 days to remain visible */
-        }
-
+        .heatmap-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid #eee; padding: 5px; margin-bottom: 15px; }
+        .heatmap-grid { display: grid; grid-template-columns: repeat(31, 1fr); gap: 2px; min-width: 450px; }
         .heatmap-cell { width: 10px; height: 10px; border-radius: 2px; border: 1px solid #e5e7eb; }
         .level-0 { background-color: #ffffff; }
         .level-1 { background-color: #d1d5db; }
@@ -64,24 +65,36 @@
         .level-3 { background-color: #6b7280; }
         .level-4 { background-color: #000000; }
 
-        /* INTERFACE HELPERS */
+        /* TYPE MANAGER */
         .exercise-type-manager { margin-bottom: 15px; border: 1px solid black; padding: 10px; }
-        .exercise-type-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; padding: 2px 5px; }
+        .exercise-type-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; padding: 2px 5px; border-bottom: 1px solid #eee; }
+        .type-del-btn { padding: 1px 4px; font-size: 9px; line-height: 1; margin-left: 15px; }
+
         .drop-zone { border: 2px dashed black; padding: 40px; text-align: center; margin-bottom: 10px; background: #f9f9f9; cursor: pointer; font-weight: bold; }
         .hidden { display: none !important; }
 
-        /* MOBILE OPTIMIZATIONS */
+        /* MOBILE OVERRIDES */
         @media (max-width: 600px) {
             body { padding: 10px; }
             .input-row { flex-direction: column; align-items: stretch; }
-            input, select, button { width: 100%; height: 38px; margin-right: 0; }
-            .exercise-text { font-size: 10px; }
-            .summary-line { font-size: 10px; }
+            input, select, .main-action-btn { width: 100%; height: 38px; margin-right: 0; }
+            
+            /* Move delete button to own line in log */
+            .exercise-main { flex-direction: column; align-items: flex-start; }
+            .delete-btn { 
+                margin: 8px 0 0 0; 
+                align-self: flex-start; 
+                padding: 4px 10px; 
+                font-size: 9px;
+            }
+            
+            .exercise-text { font-size: 11px; }
+            .type-del-btn { padding: 3px 6px; font-size: 10px; }
         }
 
         /* PRINT SETTINGS */
         @media print {
-            .drop-zone, .exercise-type-manager, .buttons, .section:has(.input-row), h1 { display: none !important; }
+            .drop-zone, .exercise-type-manager, .buttons, .section:has(.input-row), h1, .delete-btn, .type-del-btn { display: none !important; }
             .container { max-width: 100%; padding: 0; }
             .heatmap-wrapper { border: none; overflow: visible; }
             .heatmap-grid { min-width: auto; }
@@ -96,7 +109,7 @@
         <div id="uploadPrompt" class="drop-zone">
             <div onclick="document.getElementById('csvFileInput').click()">TAP TO IMPORT EXERCISES.CSV</div>
             <div style="margin-top: 15px; font-weight: normal; border-top: 1px solid #ccc; padding-top: 10px;">
-                <button onclick="tracker.startFresh()">Or Start Fresh Session</button>
+                <button class="main-action-btn" onclick="tracker.startFresh()">Or Start Fresh Session</button>
             </div>
         </div>
 
@@ -107,7 +120,7 @@
                     <input type="date" id="exerciseDate">
                     <select id="exerciseTypeSelect"></select>
                     <input type="number" id="exerciseDuration" placeholder="Minutes">
-                    <button onclick="tracker.addExercise()">Add</button>
+                    <button class="main-action-btn" onclick="tracker.addExercise()">Add</button>
                 </div>
                 <textarea id="exerciseNotes" placeholder="Notes (optional)"></textarea>
             </div>
@@ -117,7 +130,7 @@
                 <div class="exercise-type-manager">
                     <div class="input-row">
                         <input type="text" id="newExerciseType" placeholder="New type...">
-                        <button onclick="tracker.addExerciseType()">Add Type</button>
+                        <button class="type-add-btn" onclick="tracker.addExerciseType()">Add Type</button>
                     </div>
                     <div id="exerciseTypeList"></div>
                 </div>
@@ -168,9 +181,7 @@
                 const type = document.getElementById('exerciseTypeSelect').value;
                 const duration = parseInt(document.getElementById('exerciseDuration').value);
                 const notes = document.getElementById('exerciseNotes').value.trim();
-
                 if (!date || !type || !duration) return alert('Fill required fields');
-
                 this.exercises.unshift({ id: Date.now(), date, exercise_type: type, duration_minutes: duration, notes });
                 this.updateDisplay();
                 document.getElementById('exerciseDuration').value = '';
@@ -219,7 +230,7 @@
                     this.exerciseTypes.sort().map(t => `<option value="${t}">${t}</option>`).join('');
                 if (this.exerciseTypes.includes(cur)) sel.value = cur;
                 document.getElementById('exerciseTypeList').innerHTML = this.exerciseTypes.sort().map(t => `
-                    <div class="exercise-type-item"><span>${t}</span><button onclick="tracker.deleteExerciseType('${t}')">Del</button></div>
+                    <div class="exercise-type-item"><span>${t}</span><button class="type-del-btn" onclick="tracker.deleteExerciseType('${t}')">DEL</button></div>
                 `).join('');
             }
 
@@ -229,7 +240,7 @@
                     <div class="exercise-entry">
                         <div class="exercise-main">
                             <div class="exercise-text">${this.formatExerciseLine(ex.date, ex.exercise_type, ex.duration_minutes)}</div>
-                            <button class="delete-btn" onclick="tracker.deleteExercise(${ex.id})">Del</button>
+                            <button class="delete-btn" onclick="tracker.deleteExercise(${ex.id})">DELETE</button>
                         </div>
                         ${ex.notes ? `<div class="exercise-notes">${ex.notes}</div>` : ''}
                     </div>
@@ -243,15 +254,10 @@
                     acc[ex.exercise_type].min += ex.duration_minutes;
                     return acc;
                 }, {});
-
                 const lines = Object.entries(stats).sort((a,b) => b[1].min - a[1].min).map(([t, d]) => 
                     `<div class="summary-line">${t} ------------------- ${d.count} sessions, ${d.min} min</div>`
                 ).join('');
-
-                document.getElementById('summaryContent').innerHTML = `
-                    <div class="summary-subtitle">Overall Session Stats</div>
-                    ${lines || 'No session data.'}
-                `;
+                document.getElementById('summaryContent').innerHTML = `<div class="summary-subtitle">Overall Session Stats</div>${lines || 'No session data.'}`;
                 this.renderHeatmaps();
             }
 
@@ -260,19 +266,15 @@
                 container.innerHTML = '';
                 const years = [...new Set(this.exercises.map(ex => new Date(ex.date).getFullYear()))].sort((a, b) => b - a);
                 if (years.length === 0) years.push(new Date().getFullYear());
-
                 years.forEach(year => {
                     const label = document.createElement('div');
                     label.className = 'heatmap-year-label';
                     label.innerText = `Year: ${year}`;
-                    
                     const wrapper = document.createElement('div');
                     wrapper.className = 'heatmap-wrapper';
-                    
                     const grid = document.createElement('div');
                     grid.className = 'heatmap-grid';
                     grid.innerHTML = this.generateYearGrid(year);
-                    
                     wrapper.appendChild(grid);
                     container.appendChild(label);
                     container.appendChild(wrapper);
@@ -329,29 +331,20 @@
 
             exportToCSV() {
                 const h = 'date,exercise_type,duration_minutes,notes';
-                const r = this.exercises.map(ex => 
-                    `${ex.date},${ex.exercise_type},${ex.duration_minutes},"${ex.notes.replace(/"/g, '""')}"`
-                );
+                const r = this.exercises.map(ex => `${ex.date},${ex.exercise_type},${ex.duration_minutes},"${ex.notes.replace(/"/g, '""')}"`);
                 const csvContent = [h, ...r].join('\n');
-                
                 const blob = new Blob([csvContent], { type: 'application/octet-stream' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = `workout_history_${new Date().toISOString().split('T')[0]}.csv`;
-                
                 document.body.appendChild(a);
                 a.click();
-                
-                setTimeout(() => {
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                }, 100);
+                setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
             }
         }
 
         const tracker = new ExerciseTracker();
-
         function handleFileImport(e) {
             const file = e.target.files[0];
             if (!file) return;
